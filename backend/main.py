@@ -14,14 +14,16 @@ AI 助手 API —— Python FastAPI 版
 """
 
 import os
+import json
 import sqlite3
+import threading
 from contextlib import contextmanager
 from typing import List, Optional
 
 import httpx
 from dotenv import load_dotenv, set_key, unset_key
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -64,6 +66,7 @@ def _resolve_api_config(request: Request):
 class ChatRequest(BaseModel):
     message: str
     model: Optional[str] = None
+    history: Optional[list] = None  # [{"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]
     image: Optional[str] = None
     image_mime: Optional[str] = "image/jpeg"
 
@@ -266,9 +269,9 @@ def clear_history():
 
 
 # ---- AI 对话 ----
-@app.post("/api/chat", response_model=ChatResponse)
+@app.post("/api/chat")
 async def chat(data: ChatRequest, request: Request):
-    """转发到 ai.yiqiu.dev/v1/chat/completions"""
+    """转发到 ai.yiqiu.dev/v1/chat/completions（SSE 流式）"""
     api_key, base_url = _resolve_api_config(request)
 
     if not api_key:
@@ -291,9 +294,12 @@ async def chat(data: ChatRequest, request: Request):
     else:
         content = text
 
-    try:
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            resp = await client.post(
+    async def event_stream():
+        reply_parts = []
+        client = httpx.AsyncClient(timeout=120.0)
+        try:
+            async with client.stream(
+                "POST",
                 f"{base_url}/chat/completions",
                 headers={
                     "Authorization": f"Bearer {api_key}",
@@ -301,45 +307,73 @@ async def chat(data: ChatRequest, request: Request):
                 },
                 json={
                     "model": model,
-                    "messages": [{"role": "user", "content": content}],
+                    "messages": (data.history or []) + [{"role": "user", "content": content}],
+                    "stream": True,
                 },
-            )
-    except httpx.RequestError as exc:
-        raise HTTPException(status_code=502, detail=f"AI 服务连接失败: {exc}") from exc
+            ) as resp:
+                if resp.status_code != 200:
+                    error_msg = resp.text
+                    try:
+                        body = resp.json()
+                        err = body.get("error", {})
+                        code = err.get("code", "")
+                        message = err.get("message", error_msg)
+                        if code == "model_not_found":
+                            message = f"模型「{model}」不可用。请到 ai.yiqiu.dev 控制台查看你的令牌可用模型。原始信息：{message}"
+                    except Exception:
+                        message = error_msg
+                    yield f"data: {json.dumps({'error': message})}\n\n"
+                    return
 
-    if resp.status_code != 200:
-        try:
-            err = resp.json().get("error", {})
-            code = err.get("code", "")
-            message = err.get("message", resp.text)
-            if code == "model_not_found":
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"模型「{model}」不可用。请到 ai.yiqiu.dev 控制台查看你的令牌可用模型。原始信息：{message}",
-                )
-            raise HTTPException(status_code=resp.status_code, detail=message)
-        except HTTPException:
-            raise
-        except Exception:
-            raise HTTPException(status_code=resp.status_code, detail=resp.text)
+                async for line in resp.aiter_lines():
+                    if not line or not line.startswith("data: "):
+                        continue
+                    payload = line[6:]  # 去掉 "data: " 前缀
+                    if payload == "[DONE]":
+                        break
+                    try:
+                        chunk = json.loads(payload)
+                        delta = chunk.get("choices", [{}])[0].get("delta", {})
+                        content_text = delta.get("content", "")
+                        if content_text:
+                            reply_parts.append(content_text)
+                            yield f"data: {json.dumps({'content': content_text})}\n\n"
+                    except (json.JSONDecodeError, KeyError, IndexError):
+                        continue
 
-    result = resp.json()
-    try:
-        reply = result["choices"][0]["message"]["content"]
-    except (KeyError, IndexError) as exc:
-        raise HTTPException(status_code=502, detail="AI 返回格式异常") from exc
+                yield "data: [DONE]\n\n"
+        except httpx.RequestError as exc:
+            yield f"data: {json.dumps({'error': f'AI 服务连接失败: {exc}'})}\n\n"
+        finally:
+            await client.aclose()
 
-    with get_db() as conn:
-        save_history(
-            conn,
-            type_="chat",
-            model=model,
-            input_text=text,
-            output_text=reply,
-            has_upload_image=bool(data.image),
-        )
+        # 流结束后异步保存历史
+        if reply_parts:
+            full_reply = "".join(reply_parts)
+            def _save():
+                try:
+                    with get_db() as conn:
+                        save_history(
+                            conn,
+                            type_="chat",
+                            model=model,
+                            input_text=text,
+                            output_text=full_reply,
+                            has_upload_image=bool(data.image),
+                        )
+                except Exception:
+                    pass
+            threading.Thread(target=_save, daemon=True).start()
 
-    return ChatResponse(reply=reply)
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 # ---- AI 生图 ----

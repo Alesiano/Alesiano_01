@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import logoImg from './assets/logo.png'
 import {
-  askAI, generateImage, getHistory,
+  askAIStream, generateImage, getHistory,
   deleteHistory, clearHistory, getConfig,
 } from './api/ai'
 
@@ -128,19 +128,71 @@ async function sendMessage() {
     scrollToBottom()
 
     isLoading.value = true
-    const aiMsg = { role: 'assistant', content: '', loading: true }
+    const aiMsg = { role: 'assistant', content: '', reasoning: true, streaming: false }
     messages.value.push(aiMsg)
     scrollToBottom()
 
     try {
-      const res = await askAI(text || '', selectedModel.value, sentBase64 || undefined, sentMime || undefined)
+      // 提取上下文历史传给 AI
+      const history = messages.value.slice(0, -2).filter(m => !m.loading && !m.isImage && !m.error).map(m => ({ role: m.role, content: m.content }))
+      const response = await askAIStream(text || '', selectedModel.value, history, sentBase64 || undefined, sentMime || undefined)
+
+      if (!response.ok) {
+        let errDetail = `HTTP ${response.status}`
+        try {
+          const errData = await response.json()
+          errDetail = errData.detail || errDetail
+        } catch {}
+        throw new Error(errDetail)
+      }
+
       aiMsg.loading = false
-      aiMsg.content = res.data.reply
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          const trimmed = line.trim()
+          if (!trimmed.startsWith('data: ')) continue
+          const payload = trimmed.slice(6)
+          if (payload === '[DONE]') break
+          try {
+            const parsed = JSON.parse(payload)
+            if (parsed.error) {
+              aiMsg.error = parsed.error
+              break
+            }
+            if (parsed.content) {
+              // 收到第一条内容时，折叠推理区域，开始打字机输出
+              if (aiMsg.reasoning) {
+                aiMsg.reasoning = false
+                aiMsg.reasoningCollapsed = true
+                aiMsg.streaming = true
+              }
+              aiMsg.content += parsed.content
+              scrollToBottom()
+            }
+          } catch { continue }
+        }
+      }
+
+      aiMsg.streaming = false
       await loadHistory()
     } catch (err) {
       aiMsg.loading = false
-      aiMsg.content = ''
-      aiMsg.error = err.response?.data?.detail || 'AI 请求失败'
+      aiMsg.reasoning = false
+      aiMsg.streaming = false
+      aiMsg.content = aiMsg.content || ''
+      aiMsg.error = err.message || 'AI 请求失败'
     }
   }
   isLoading.value = false
@@ -392,8 +444,25 @@ watch(selectedModel, (v) => {
             <img v-if="msg.isImage && msg.imageUrl" :src="msg.imageUrl" class="bubble-generated-image" />
             <!-- 加载动画 -->
             <div v-if="msg.loading" class="typing-dots"><span></span><span></span><span></span></div>
-            <!-- 文本内容 -->
-            <div v-if="msg.content" class="bubble-text">{{ msg.content }}</div>
+            <!-- 推理过程（可折叠） -->
+            <div
+              v-if="msg.role === 'assistant' && (msg.reasoning || msg.reasoningCollapsed)"
+              class="reasoning-area"
+              :class="{ collapsed: msg.reasoningCollapsed }"
+              @click="msg.reasoningCollapsed = !msg.reasoningCollapsed"
+            >
+              <div class="reasoning-header">
+                <span class="reasoning-title">{{ msg.reasoning ? '思考中...' : '推理过程' }}</span>
+                <span class="reasoning-toggle">{{ msg.reasoningCollapsed ? '展开' : '收起' }}</span>
+              </div>
+              <div v-if="msg.reasoning" class="reasoning-dots">
+                <span></span><span></span><span></span>
+              </div>
+            </div>
+            <!-- 文本内容 + 光标 -->
+            <div v-if="msg.content || msg.streaming" class="bubble-text">
+              {{ msg.content }}<span v-if="msg.streaming" class="typing-cursor">|</span>
+            </div>
             <!-- 错误 -->
             <div v-if="msg.error" class="bubble-error">{{ msg.error }}</div>
           </div>
@@ -918,6 +987,81 @@ body {
 @keyframes typing {
   0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
   40% { transform: scale(1); opacity: 1; }
+}
+
+/* ====== 推理过程区域 ====== */
+.reasoning-area {
+  background: var(--bg-input-row);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.3s ease;
+}
+
+.reasoning-area:hover {
+  background: var(--bg-hover);
+}
+
+.reasoning-area.collapsed .reasoning-dots {
+  display: none;
+}
+
+.reasoning-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.reasoning-title {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  transition: color 0.3s ease;
+}
+
+.reasoning-toggle {
+  font-size: 11px;
+  color: var(--text-muted);
+  transition: color 0.3s ease;
+}
+
+/* 思考动画：三个点依次淡入淡出 */
+.reasoning-dots {
+  display: flex;
+  gap: 6px;
+  padding: 6px 0 2px;
+}
+
+.reasoning-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  animation: reasoning-breathe 1.2s infinite ease-in-out both;
+}
+
+.reasoning-dots span:nth-child(1) { animation-delay: 0s; }
+.reasoning-dots span:nth-child(2) { animation-delay: 0.3s; }
+.reasoning-dots span:nth-child(3) { animation-delay: 0.6s; }
+
+@keyframes reasoning-breathe {
+  0%, 100% { opacity: 0.2; transform: scale(0.7); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+/* 打字机光标闪烁 */
+.typing-cursor {
+  display: inline;
+  font-weight: 300;
+  color: var(--text-primary);
+  animation: blink-cursor 0.5s step-end infinite;
+}
+
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
 }
 
 /* ====== 输入区 ====== */

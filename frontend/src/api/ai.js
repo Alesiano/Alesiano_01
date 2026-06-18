@@ -20,12 +20,27 @@ api.interceptors.request.use(config => {
   return config
 })
 
-export function askAI(message, model, image, imageMime) {
-  return api.post('/chat', {
-    message,
-    model,
-    image: image || undefined,
-    image_mime: imageMime || undefined,
+export function askAIStream(message, model, history, image, imageMime) {
+  const apiKey = localStorage.getItem('ai_api_key')
+  const baseUrl = localStorage.getItem('ai_base_url')
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || ''
+
+  const headers = { 'Content-Type': 'application/json' }
+  if (apiKey) headers['X-Api-Key'] = apiKey
+  if (baseUrl) headers['X-Api-Base-Url'] = baseUrl
+
+  const url = apiBaseUrl ? `${apiBaseUrl}/api/chat` : '/api/chat'
+
+  return fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      message,
+      model,
+      history: history || [],
+      image: image || undefined,
+      image_mime: imageMime || undefined,
+    }),
   })
 }
 
