@@ -21,6 +21,7 @@ from typing import List, Optional
 import httpx
 from dotenv import load_dotenv, set_key, unset_key
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -36,14 +37,19 @@ AI_MODEL = os.getenv("AI_MODEL", "gpt-3.5-turbo")
 
 app = FastAPI(title="AI 助手 API")
 
-# 开发时限制 localhost，部署后 Vercel 域名可通过 CORS_ORIGINS 环境变量配置
-cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:5173").split(",")
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=cors_origins,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# 保留 CORS_ORIGINS 环境变量用于兼容，但中间件直接使用 *
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "")
+
+@app.middleware("http")
+async def add_cors_headers(request: Request, call_next):
+    if request.method == "OPTIONS":
+        response = Response(status_code=200)
+    else:
+        response = await call_next(request)
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "*"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
 
 # ========== 辅助函数 ==========
