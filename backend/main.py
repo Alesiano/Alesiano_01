@@ -312,23 +312,24 @@ async def chat(data: ChatRequest, request: Request):
                 },
             ) as resp:
                 if resp.status_code != 200:
-                    error_msg = resp.text
                     try:
-                        body = resp.json()
-                        err = body.get("error", {})
+                        body = await resp.aread()
+                        body_obj = json.loads(body)
+                        err = body_obj.get("error", {})
                         code = err.get("code", "")
-                        message = err.get("message", error_msg)
+                        message = err.get("message", body.decode())
                         if code == "model_not_found":
                             message = f"模型「{model}」不可用。请到 ai.yiqiu.dev 控制台查看你的令牌可用模型。原始信息：{message}"
                     except Exception:
-                        message = error_msg
+                        message = f"HTTP {resp.status_code}: {resp.text if hasattr(resp, 'text') else '未知错误'}"
                     yield f"data: {json.dumps({'error': message})}\n\n"
+                    yield "data: [DONE]\n\n"
                     return
 
                 async for line in resp.aiter_lines():
                     if not line or not line.startswith("data: "):
                         continue
-                    payload = line[6:]  # 去掉 "data: " 前缀
+                    payload = line[6:]
                     if payload == "[DONE]":
                         break
                     try:
@@ -342,8 +343,13 @@ async def chat(data: ChatRequest, request: Request):
                         continue
 
                 yield "data: [DONE]\n\n"
+
         except httpx.RequestError as exc:
             yield f"data: {json.dumps({'error': f'AI 服务连接失败: {exc}'})}\n\n"
+            yield "data: [DONE]\n\n"
+        except Exception as exc:
+            yield f"data: {json.dumps({'error': f'内部错误: {exc}'})}\n\n"
+            yield "data: [DONE]\n\n"
         finally:
             await client.aclose()
 
