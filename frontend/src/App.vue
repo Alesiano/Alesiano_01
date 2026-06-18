@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
+import logoImg from './assets/logo.png'
 import {
   askAI, generateImage, getHistory,
   deleteHistory, clearHistory, getConfig,
@@ -317,9 +318,7 @@ watch(selectedModel, (v) => {
     <aside class="sidebar">
       <div class="sidebar-header">
         <div class="sidebar-logo">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#10a37f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
+          <img :src="logoImg" alt="Alesia.AI" class="sidebar-logo-img" width="28" height="28" />
           <span class="sidebar-title">Alesia.AI</span>
         </div>
       </div>
@@ -384,7 +383,7 @@ watch(selectedModel, (v) => {
           :class="['message', msg.role === 'user' ? 'message-user' : 'message-ai']"
         >
           <div v-if="msg.role === 'assistant'" class="message-avatar">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#10a37f" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <svg class="avatar-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
           </div>
           <div :class="['message-bubble', msg.role === 'user' ? 'bubble-user' : 'bubble-ai']">
             <!-- 用户图片 -->
@@ -521,60 +520,66 @@ watch(selectedModel, (v) => {
 :root,
 [data-theme="light"] {
   --bg-main: #ffffff;
-  --bg-sidebar: #f7f7f8;
-  --bg-bubble-user: #f4f4f4;
+  --bg-sidebar: #fafafa;
+  --bg-bubble-user: #f5f5f5;
   --bg-bubble-ai: #ffffff;
   --bg-input: #ffffff;
-  --bg-input-row: #f4f4f4;
+  --bg-input-row: #f5f5f5;
   --bg-modal: #ffffff;
-  --bg-avatar: #f4f4f4;
-  --bg-hover: #ebebeb;
-  --bg-sidebar-hover: #ebebeb;
-  --bg-danger-hover: #fde8e8;
-  --text-primary: #1a1a2e;
-  --text-secondary: #6b7280;
-  --text-muted: #9ca3af;
-  --text-placeholder: #9ca3af;
-  --border-color: #e5e5e5;
-  --border-input: #d1d5db;
-  --accent: #10a37f;
-  --accent-hover: #0d8c6d;
-  --danger: #f56c6c;
-  --danger-border: #fca5a5;
-  --image-tag-bg: #8b5cf6;
-  --overlay-bg: rgba(0, 0, 0, 0.3);
-  --shadow-modal: 0 8px 32px rgba(0, 0, 0, 0.12);
-  --input-row-border: #d1d5db;
-  --input-row-focus-border: #10a37f;
+  --bg-avatar: #f5f5f5;
+  --bg-hover: #ededed;
+  --bg-sidebar-hover: #ededed;
+  --bg-danger-hover: #f5f5f5;
+  --text-primary: #000000;
+  --text-secondary: #666666;
+  --text-muted: #999999;
+  --text-placeholder: #999999;
+  --border-color: #e0e0e0;
+  --border-input: #cccccc;
+  --accent: #000000;
+  --accent-hover: #333333;
+  --danger: #d32f2f;
+  --danger-border: #e0e0e0;
+  --image-tag-bg: #000000;
+  --overlay-bg: rgba(0, 0, 0, 0.25);
+  --shadow-modal: 0 8px 32px rgba(0, 0, 0, 0.08);
+  --input-row-border: #d5d5d5;
+  --input-row-focus-border: #000000;
+  --send-btn-bg: #000000;
+  --send-btn-hover: #222222;
+  --send-btn-icon: #ffffff;
 }
 
 [data-theme="dark"] {
-  --bg-main: #212121;
-  --bg-sidebar: #171717;
-  --bg-bubble-user: #2f2f2f;
-  --bg-bubble-ai: #2a2a2a;
-  --bg-input: #212121;
-  --bg-input-row: #2f2f2f;
-  --bg-modal: #2f2f2f;
+  --bg-main: #000000;
+  --bg-sidebar: #0a0a0a;
+  --bg-bubble-user: #1a1a1a;
+  --bg-bubble-ai: #0d0d0d;
+  --bg-input: #000000;
+  --bg-input-row: #1a1a1a;
+  --bg-modal: #141414;
   --bg-avatar: #1a1a1a;
-  --bg-hover: #2a2a2a;
-  --bg-sidebar-hover: #2a2a2a;
-  --bg-danger-hover: #3b1a1a;
-  --text-primary: #ececec;
-  --text-secondary: #8e8e8e;
-  --text-muted: #6b6b6b;
-  --text-placeholder: #6b6b6b;
-  --border-color: #2f2f2f;
-  --border-input: #424242;
-  --accent: #10a37f;
-  --accent-hover: #0d8c6d;
-  --danger: #f56c6c;
-  --danger-border: #5c2020;
-  --image-tag-bg: #8b5cf6;
-  --overlay-bg: rgba(0, 0, 0, 0.6);
-  --shadow-modal: 0 8px 32px rgba(0, 0, 0, 0.4);
-  --input-row-border: #424242;
-  --input-row-focus-border: #10a37f;
+  --bg-hover: #1a1a1a;
+  --bg-sidebar-hover: #1a1a1a;
+  --bg-danger-hover: #241010;
+  --text-primary: #ffffff;
+  --text-secondary: #888888;
+  --text-muted: #666666;
+  --text-placeholder: #666666;
+  --border-color: #2a2a2a;
+  --border-input: #333333;
+  --accent: #ffffff;
+  --accent-hover: #cccccc;
+  --danger: #f44336;
+  --danger-border: #3a2020;
+  --image-tag-bg: #ffffff;
+  --overlay-bg: rgba(0, 0, 0, 0.7);
+  --shadow-modal: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --input-row-border: #333333;
+  --input-row-focus-border: #ffffff;
+  --send-btn-bg: #ffffff;
+  --send-btn-hover: #e0e0e0;
+  --send-btn-icon: #000000;
 }
 
 /* ====== 全局重置 ====== */
@@ -607,7 +612,7 @@ body {
 }
 
 .sidebar-header {
-  padding: 16px;
+  padding: 20px 18px;
   border-bottom: 1px solid var(--border-color);
   transition: border-color 0.3s ease;
 }
@@ -615,7 +620,16 @@ body {
 .sidebar-logo {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+}
+
+.sidebar-logo-img {
+  display: block;
+  transition: filter 0.3s ease;
+}
+
+[data-theme="dark"] .sidebar-logo-img {
+  filter: invert(1);
 }
 
 .sidebar-title {
@@ -691,8 +705,8 @@ body {
   color: #fff;
 }
 
-.history-entry-tag.chat { background: var(--accent); }
-.history-entry-tag.image { background: var(--image-tag-bg); }
+.history-entry-tag.chat { background: #000; }
+.history-entry-tag.image { background: #000; }
 
 .history-entry-time {
   font-size: 11px;
@@ -749,10 +763,10 @@ body {
 .sidebar-btn-danger:hover { background: var(--bg-danger-hover); color: var(--danger); border-color: var(--danger-border); }
 
 .sidebar-btn-theme { border-color: var(--border-input); }
-.sidebar-btn-theme:hover { border-color: var(--accent); color: var(--accent); }
+.sidebar-btn-theme:hover { border-color: var(--text-primary); color: var(--text-primary); }
 
 .sidebar-btn-settings { border-color: var(--border-input); }
-.sidebar-btn-settings:hover { border-color: var(--accent); color: var(--accent); }
+.sidebar-btn-settings:hover { border-color: var(--text-primary); color: var(--text-primary); }
 
 /* ====== 主内容区 ====== */
 .chat-area {
@@ -768,7 +782,7 @@ body {
 .chat-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
+  padding: 32px 40px;
   scroll-behavior: smooth;
 }
 
@@ -799,8 +813,8 @@ body {
 /* 消息气泡 */
 .message {
   display: flex;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: 14px;
+  margin-bottom: 24px;
   max-width: 85%;
 }
 
@@ -826,6 +840,15 @@ body {
   transition: background 0.3s ease;
 }
 
+.avatar-svg {
+  color: #000;
+  transition: color 0.3s ease;
+}
+
+[data-theme="dark"] .avatar-svg {
+  color: #fff;
+}
+
 .bubble-user {
   background: var(--bg-bubble-user);
   border-radius: 18px 18px 4px 18px;
@@ -848,7 +871,7 @@ body {
 }
 
 .message-bubble {
-  padding: 12px 16px;
+  padding: 16px 20px;
   max-width: 100%;
 }
 
@@ -899,7 +922,7 @@ body {
 
 /* ====== 输入区 ====== */
 .chat-input-area {
-  padding: 12px 24px 20px;
+  padding: 16px 40px 24px;
   border-top: 1px solid var(--border-color);
   background: var(--bg-main);
   transition: background 0.3s ease, border-color 0.3s ease;
@@ -914,29 +937,30 @@ body {
 /* 模型标签 */
 .model-tags {
   display: flex;
-  gap: 6px;
-  margin-bottom: 10px;
+  gap: 8px;
+  margin-bottom: 12px;
   flex-wrap: wrap;
 }
 
 .model-tag {
-  padding: 4px 10px;
-  font-size: 11px;
-  border-radius: 12px;
+  padding: 8px 16px;
+  font-size: 13px;
+  border-radius: 20px;
   border: 1px solid var(--border-input);
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.2s ease;
   white-space: nowrap;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
+  font-weight: 500;
 }
 
-.model-tag:hover { border-color: var(--accent); color: var(--accent); }
-.model-tag.active { background: var(--accent); border-color: var(--accent); color: #fff; }
-.model-tag-image.active { background: var(--image-tag-bg); border-color: var(--image-tag-bg); }
+.model-tag:hover { border-color: var(--text-primary); color: var(--text-primary); }
+.model-tag.active { background: #000; border-color: #000; color: #fff; }
+.model-tag-image.active { background: #000; border-color: #000; color: #fff; }
 
 /* 生图尺寸 */
 .image-size-row {
@@ -949,18 +973,18 @@ body {
 .size-label { font-size: 12px; color: var(--text-secondary); transition: color 0.3s ease; }
 
 .size-tag {
-  padding: 3px 10px;
-  font-size: 11px;
-  border-radius: 10px;
+  padding: 5px 14px;
+  font-size: 12px;
+  border-radius: 16px;
   border: 1px solid var(--border-input);
   background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.2s ease;
 }
 
-.size-tag:hover { border-color: var(--image-tag-bg); color: var(--image-tag-bg); }
-.size-tag.active { background: var(--image-tag-bg); border-color: var(--image-tag-bg); color: #fff; }
+.size-tag:hover { border-color: var(--text-primary); color: var(--text-primary); }
+.size-tag.active { background: #000; border-color: #000; color: #fff; }
 
 /* 图片预览 */
 .input-preview {
@@ -1003,16 +1027,18 @@ body {
 .input-row {
   display: flex;
   align-items: flex-end;
-  gap: 8px;
+  gap: 10px;
   background: var(--bg-input-row);
   border: 1px solid var(--input-row-border);
-  border-radius: 12px;
-  padding: 6px 8px;
-  transition: border-color 0.15s, background 0.3s ease;
+  border-radius: 28px;
+  padding: 8px 10px 8px 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  transition: border-color 0.2s, background 0.3s ease, box-shadow 0.2s;
 }
 
 .input-row:focus-within {
   border-color: var(--input-row-focus-border);
+  box-shadow: 0 1px 6px rgba(0,0,0,0.08);
 }
 
 .upload-btn {
@@ -1020,15 +1046,15 @@ body {
   border: none;
   color: var(--text-secondary);
   cursor: pointer;
-  padding: 6px;
-  border-radius: 6px;
+  padding: 8px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
-  transition: color 0.15s;
+  transition: color 0.2s;
   flex-shrink: 0;
 }
 
-.upload-btn:hover { color: var(--accent); }
+.upload-btn:hover { color: var(--text-primary); }
 
 .input-textarea {
   flex: 1;
@@ -1036,10 +1062,10 @@ body {
   border: none;
   outline: none;
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 15px;
   font-family: inherit;
   resize: none;
-  padding: 6px 4px;
+  padding: 8px 4px;
   line-height: 1.5;
   max-height: 160px;
   overflow-y: auto;
@@ -1049,22 +1075,22 @@ body {
 .input-textarea::placeholder { color: var(--text-placeholder); }
 
 .send-btn {
-  background: var(--accent);
+  background: var(--send-btn-bg);
   border: none;
-  border-radius: 8px;
-  width: 36px;
-  height: 36px;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  color: #fff;
+  color: var(--send-btn-icon);
   flex-shrink: 0;
-  transition: background 0.15s;
+  transition: background 0.2s, transform 0.15s;
 }
 
-.send-btn:hover { background: var(--accent-hover); }
-.send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.send-btn:hover { background: var(--send-btn-hover); transform: scale(1.04); }
+.send-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
 
 /* ====== 设置弹窗 ====== */
 .modal-overlay {
@@ -1145,7 +1171,7 @@ body {
 
 .form-group input:focus,
 .form-group select:focus {
-  border-color: var(--accent);
+  border-color: var(--text-primary);
 }
 
 .form-group select {
@@ -1165,7 +1191,7 @@ body {
 }
 
 .form-success {
-  color: var(--accent);
+  color: #000;
   font-size: 13px;
   text-align: center;
   padding: 8px;
@@ -1195,11 +1221,11 @@ body {
   padding: 8px 20px;
   border-radius: 6px;
   border: none;
-  background: var(--accent);
+  background: #000;
   color: #fff;
   font-size: 13px;
   cursor: pointer;
 }
 
-.btn-save:hover { background: var(--accent-hover); }
+.btn-save:hover { background: #333; }
 </style>
